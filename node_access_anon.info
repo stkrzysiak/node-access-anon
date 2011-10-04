@@ -1,0 +1,6 @@
+; $Id$
+name = Node Access Work Around
+description = Node access gives God power to anon users on anon authored nodes.
+dependencies[] = nodeaccess
+package = Arcs
+core = 6.x

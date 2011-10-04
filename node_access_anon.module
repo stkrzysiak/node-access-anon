@@ -1,0 +1,65 @@
+<?php
+//$Id
+
+/**
+ * @file
+ * When a user is deleted, assign all their nodes to uid=1
+ */
+
+/**
+ * Implementation of hook_user().  Sets their content to uid=1
+ * 
+ */
+function node_access_anon_user($op, &$edit, &$account, $category = NULL)  {
+  if($op=='delete')  {
+    $query="UPDATE {node} SET uid='1' where uid='%d'";
+    $result=db_query($query, $account->id);
+    if(!$result)  {
+      watchdog('node_access_anon', 'Failed to disassociate content from deleted user.');
+    }
+  }
+}
+
+/**
+ * cron hook to update any orphaned content
+ * 
+ */
+function node_access_anon_cron () {
+    $query="UPDATE {node} SET uid='1' where uid='0'";
+    $result=db_query($query);
+    if(!$result)  {
+      watchdog('node_access_anon', 'Cron: Failed to disassociate content from deleted user.');
+    }  
+  
+}
+
+function node_access_anon_form_alter($form, &$form_state) {
+dpm($form);
+  if($form['form_id']['#id']=='user_admin_account'||$form['form_id']['#value']=='user_multiple_delete_confirm')  {
+    $form['#validate'][] = 'node_access_anon_validate';
+  }
+}
+
+/**
+ * prevent users from deleting uid=0 & uid=1
+ * 
+ * discussion: http://drupal.org/node/46149
+ * refactored from: http://drupal.org/project/userprotect
+ */
+function node_access_anon_validate($form, &$form_state) {
+  // Unset the checked user so they will not be processed, and display a warning.
+  // Note that the array element has to be completely removed here in order to prevent the
+  // user from being deleted, due to the nature of the mass deletion callback.
+  $operation_rid = explode('-', $form_state['values']['operation']);
+  $operation = $operation_rid[0];
+  if($operation=='delete')  {
+    $uids = array_filter($form_state['values']['accounts']);
+    foreach ($uids as $uid) {
+      dpm($uid, "user:");
+      if($uid<2)  {
+        unset($form_state['values']['accounts'][$uid]);
+        drupal_set_message(t('You can not delete the administrator account'), 'error');
+      }
+    }
+  }
+}
